@@ -1,6 +1,7 @@
 #include <asf.h>
 #include <inttypes.h>
 void timer_init_test (void);
+void pwm_init_test(void);
 uint32_t counter = 0 ;
 
 
@@ -9,11 +10,14 @@ int main (void)
 	sysclk_init();
  	board_init();
 	udc_start();
+	pwm_init_test();
 	
 	timer_init_test();
 	ioport_set_pin_dir(PIO_PC5_IDX,IOPORT_DIR_OUTPUT);
 	ioport_set_pin_dir(PIO_PC6_IDX,IOPORT_DIR_OUTPUT);
-
+	ioport_set_pin_dir(PIO_PC31_IDX,IOPORT_DIR_INPUT);
+	ioport_set_pin_mode(PIO_PC31_IDX,IOPORT_MODE_PULLDOWN);
+	ioport_disable_pin(PIO_PC31_IDX);
 	char data [100] ;
 	int tim [4];
 	while(1)
@@ -163,4 +167,31 @@ void timer_init_test (void)
 	// Frequency : TC_CMR_TCCLKS_TIMER_CLOCK2 = MCK / 8 = 150MHz / 8 = 18.75MHz  => 
 	// Duration  : 26250 / 18750000 = 0.0014 s = 3t
 	// t = L_motor / R_motor = 0.00056 mH / 1.2 ohm =  0.0014 
+void pwm_init_test(void)
+{
+	pwm_channel_t pwm_channel_instance;
+	pmc_enable_periph_clk(ID_PWM0);
+	pwm_channel_disable(PWM0, PWM_CHANNEL_0);
+	pwm_clock_t clock_setting = {
+		.ul_clka = 10000 * 100,
+		.ul_clkb = 0,
+		.ul_mck = sysclk_get_cpu_hz()
+	};
+	pwm_init(PWM0, &clock_setting);
+	pwm_channel_instance.ul_prescaler = PWM_CMR_CPRE_CLKA;
+	pwm_channel_instance.ul_period = 100;
+	pwm_channel_instance.ul_duty = 90;
+	pwm_channel_instance.channel = PWM_CHANNEL_0;
+	pwm_channel_instance.polarity = PWM_HIGH;
+	pwm_channel_instance.ul_spread = 0;
+	pwm_channel_init(PWM0, &pwm_channel_instance);
+	
+	
+	ioport_set_pin_mode(PIO_PA0_IDX, IOPORT_MODE_MUX_A);
+	ioport_disable_pin(PIO_PA0_IDX);
+	
+	ioport_set_pin_mode(PIO_PA19_IDX, IOPORT_MODE_MUX_B);
+	ioport_disable_pin(PIO_PA19_IDX);
+	
+	pwm_channel_enable(PWM0, PWM_CHANNEL_0);
 }

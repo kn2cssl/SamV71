@@ -3,6 +3,10 @@
 void timer_init_test (void);
 void pwm_init_test(void);
 uint32_t counter = 0 ;
+uint32_t dac_counter=0;
+//! DAC channel used for test
+#define DACC_CHANNEL        0 // (PB13)
+//#define DACC_CHANNEL        1 // (PD00)
 
 
 int main (void)
@@ -20,10 +24,52 @@ int main (void)
 	ioport_disable_pin(PIO_PC31_IDX);
 	char data [100] ;
 	int tim [4];
+
+
+	afec_enable(AFEC1);
+	struct afec_config afec_cfg;
+	afec_get_config_defaults(&afec_cfg);
+	afec_init(AFEC1, &afec_cfg);
+	struct afec_ch_config afec_ch_cfg;
+	afec_ch_get_config_defaults(&afec_ch_cfg);
+	/*
+	 * Because the internal AFEC offset is 0x200, it should cancel it and shift
+	 * down to 0.
+	 */
+	afec_channel_set_analog_offset(AFEC1, AFEC_CHANNEL_6, 0x200);
+	afec_ch_cfg.gain = AFEC_GAINVALUE_0;
+	afec_ch_set_config(AFEC1, AFEC_CHANNEL_6, &afec_ch_cfg);
+	afec_set_trigger(AFEC1, AFEC_TRIG_SW);
+	/* Enable channel for AFEC_CHANNEL_6. */
+	afec_channel_enable(AFEC1, AFEC_CHANNEL_6);
+
+
+
+
+	/* Enable clock for DACC */
+	sysclk_enable_peripheral_clock(ID_DACC);
+	/* Reset DACC registers */
+	dacc_reset(DACC);
+	/* Half word transfer mode */
+	dacc_set_transfer_mode(DACC, 0);
+	/* Enable output channel DACC_CHANNEL */
+	dacc_enable_channel(DACC, DACC_CHANNEL);
+	/* Set up analog current */
+	dacc_set_analog_control(DACC, (DACC_ACR_IBCTLCH0(0x02) | DACC_ACR_IBCTLCH1(0x02)));
+
+
+
 	while(1)
 	{
-		int data_size = sprintf(data," %" PRIu32 ", %" PRIu32 ", %" PRIu32 ", %" PRIu32 ", %" PRIu32 " \r"
-		,tim[0]//TC2->TC_CHANNEL[0].TC_RA
+		dac_counter ++;
+		afec_start_software_conversion(AFEC1);
+		//while (afec_get_interrupt_status(AFEC1) & (1 << AFEC_CHANNEL_6));
+		uint32_t result = afec_channel_get_value(AFEC1, AFEC_CHANNEL_6);
+		
+		dacc_write_conversion_data(DACC, dac_counter, DACC_CHANNEL);
+		
+		int data_size = sprintf(data," %ld, %ld, %ld, %ld, %ld \r"
+		,result//tim[0]//TC2->TC_CHANNEL[0].TC_RA
 		,tim[1]//TC2->TC_CHANNEL[0].TC_RB
 		,tim[2]//ioport_get_pin_level(PIO_PC29_IDX)
 		,tim[3]//ioport_get_pin_level(PIO_PC30_IDX)
@@ -162,11 +208,12 @@ void timer_init_test (void)
 	// Counter
 	tc_init(TC2,0,TC_CMR_TCCLKS_TIMER_CLOCK4 | TC_CMR_ABETRG | TC_CMR_ETRGEDG_EDGE | TC_CMR_LDRA_EDGE );
 	tc_start(TC2,0);
-	
-		
-	// Frequency : TC_CMR_TCCLKS_TIMER_CLOCK2 = MCK / 8 = 150MHz / 8 = 18.75MHz  => 
-	// Duration  : 26250 / 18750000 = 0.0014 s = 3t
-	// t = L_motor / R_motor = 0.00056 mH / 1.2 ohm =  0.0014 
+}
+
+
+// Frequency : TC_CMR_TCCLKS_TIMER_CLOCK2 = MCK / 8 = 150MHz / 8 = 18.75MHz  =>
+// Duration  : 26250 / 18750000 = 0.0014 s = 3t
+// t = L_motor / R_motor = 0.00056 mH / 1.2 ohm =  0.0014
 void pwm_init_test(void)
 {
 	pwm_channel_t pwm_channel_instance;

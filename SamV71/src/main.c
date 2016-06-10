@@ -2,6 +2,8 @@
 #include <inttypes.h>
 void timer_init_test (void);
 void pwm_init_test(void);
+void adc_init_test (void);
+void dac_init_test (void);
 uint32_t counter = 0 ;
 uint32_t dac_counter=0;
 //! DAC channel used for test
@@ -15,6 +17,8 @@ int main (void)
  	board_init();
 	udc_start();
 	pwm_init_test();
+	adc_init_test();
+	dac_init_test();
 	
 	timer_init_test();
 	ioport_set_pin_dir(PIO_PC5_IDX,IOPORT_DIR_OUTPUT);
@@ -24,40 +28,6 @@ int main (void)
 	ioport_disable_pin(PIO_PC31_IDX);
 	char data [100] ;
 	int tim [4];
-
-
-	afec_enable(AFEC1);
-	struct afec_config afec_cfg;
-	afec_get_config_defaults(&afec_cfg);
-	afec_init(AFEC1, &afec_cfg);
-	struct afec_ch_config afec_ch_cfg;
-	afec_ch_get_config_defaults(&afec_ch_cfg);
-	/*
-	 * Because the internal AFEC offset is 0x200, it should cancel it and shift
-	 * down to 0.
-	 */
-	afec_channel_set_analog_offset(AFEC1, AFEC_CHANNEL_6, 0x200);
-	afec_ch_cfg.gain = AFEC_GAINVALUE_0;
-	afec_ch_set_config(AFEC1, AFEC_CHANNEL_6, &afec_ch_cfg);
-	afec_set_trigger(AFEC1, AFEC_TRIG_SW);
-	/* Enable channel for AFEC_CHANNEL_6. */
-	afec_channel_enable(AFEC1, AFEC_CHANNEL_6);
-
-
-
-
-	/* Enable clock for DACC */
-	sysclk_enable_peripheral_clock(ID_DACC);
-	/* Reset DACC registers */
-	dacc_reset(DACC);
-	/* Half word transfer mode */
-	dacc_set_transfer_mode(DACC, 0);
-	/* Enable output channel DACC_CHANNEL */
-	dacc_enable_channel(DACC, DACC_CHANNEL);
-	/* Set up analog current */
-	dacc_set_analog_control(DACC, (DACC_ACR_IBCTLCH0(0x02) | DACC_ACR_IBCTLCH1(0x02)));
-
-
 
 	while(1)
 	{
@@ -241,4 +211,39 @@ void pwm_init_test(void)
 	ioport_disable_pin(PIO_PA19_IDX);
 	
 	pwm_channel_enable(PWM0, PWM_CHANNEL_0);
+}
+
+
+void adc_init_test (void)
+{
+	afec_enable(AFEC1);
+	struct afec_config afec_cfg;
+	afec_get_config_defaults(&afec_cfg);
+	afec_init(AFEC1, &afec_cfg);
+	struct afec_ch_config afec_ch_cfg;
+	afec_ch_get_config_defaults(&afec_ch_cfg);
+	/*
+	 * Because the internal AFEC offset is 0x200, it should cancel it and shift
+	 * down to 0.
+	 */
+	afec_channel_set_analog_offset(AFEC1, AFEC_CHANNEL_6, 0x200);
+	afec_ch_cfg.gain = AFEC_GAINVALUE_0;
+	afec_ch_set_config(AFEC1, AFEC_CHANNEL_6, &afec_ch_cfg);
+	afec_set_trigger(AFEC1, AFEC_TRIG_SW);
+	/* Enable channel for AFEC_CHANNEL_6. */
+	afec_channel_enable(AFEC1, AFEC_CHANNEL_6);
+}
+
+void dac_init_test (void)
+{
+	/* Enable clock for DACC */
+	sysclk_enable_peripheral_clock(ID_DACC);
+	/* Reset DACC registers */
+	dacc_reset(DACC);
+	/* Half word transfer mode */
+	dacc_set_transfer_mode(DACC, 0);
+	/* Enable output channel DACC_CHANNEL */
+	dacc_enable_channel(DACC, DACC_CHANNEL);
+	/* Set up analog current */
+	dacc_set_analog_control(DACC, (DACC_ACR_IBCTLCH0(0x02) | DACC_ACR_IBCTLCH1(0x02)));	
 }

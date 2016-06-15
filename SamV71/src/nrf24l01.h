@@ -17,13 +17,24 @@
 /************************************************************************/
 /* Board Initialize                                                     */
 /************************************************************************/
+// some of pin definitions
+#define CE PIO_PA5_IDX
+#define IRQ PIO_PB2_IDX
+#define CSN PIO_PD25_IDX
+
+#define NRF24L01_SPI SPI0
+// This change wireless address
+#define MODULE_ID 0x01
+
+
 
 #define NRF24L01_CE_HIGH	    ioport_set_pin_level(CE,HIGH)
 #define NRF24L01_CE_LOW			ioport_set_pin_level(CE,LOW)
-#define NRF24L01_CSN_HIGH	    ioport_set_pin_level(CSN,HIGH)
-#define NRF24L01_CSN_LOW		ioport_set_pin_level(CSN,LOW)
+// We don't use this definitions because of compiler errors
+// #define NRF24L01_CSN_HIGH	spi_deselect_device(NRF24L01_SPI,&nrf24l01_spi_device)
+// #define NRF24L01_CSN_LOW		spi_select_device(NRF24L01_SPI,&nrf24l01_spi_device)
 
-char SPI_L(char TX_Data);
+uint8_t SPI_L(uint8_t TX_Data);
 
 // Bits
 #define TX_REUSE (1<<6)

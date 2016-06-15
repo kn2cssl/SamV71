@@ -41,6 +41,14 @@
 
 #include "NRF24L01.h"
 
+struct spi_device nrf24l01_spi_device = {
+	.id = 1
+	// NPCS0 -> 0
+	// NPCS1 -> 1  We have choosed this one.>> SPI0_NPCS1_GPIO = PIO_PD25_IDX = CSN
+	// NPCS2 -> 2
+	// NPCS3 -> 3
+};
+
 /**
  Read a register
 
@@ -51,13 +59,13 @@
 char NRF24L01_ReadReg(char Reg) {
 	char Result;
 
-	NRF24L01_CSN_LOW;
+	spi_select_device(NRF24L01_SPI,&nrf24l01_spi_device);
 
 	SPI_L(Reg);
 
 	Result = SPI_L(NOP);
 
-	NRF24L01_CSN_HIGH;
+	spi_deselect_device(NRF24L01_SPI,&nrf24l01_spi_device);
 
 	return Result;
 }
@@ -73,13 +81,13 @@ char NRF24L01_ReadReg(char Reg) {
 char NRF24L01_WriteReg(char Reg, char Value) {
 	char Result;
 
-	NRF24L01_CSN_LOW;
+	spi_select_device(NRF24L01_SPI,&nrf24l01_spi_device);
 
 	Result = SPI_L(Reg);
 	
 	SPI_L(Value);
 
-	NRF24L01_CSN_HIGH;
+	spi_deselect_device(NRF24L01_SPI,&nrf24l01_spi_device);
 
 	return Result;
 }
@@ -97,7 +105,7 @@ char NRF24L01_ReadRegBuf(char Reg, char *Buf, int Size) {
 	int i;
 	char Result;
 
-	NRF24L01_CSN_LOW;
+	spi_select_device(NRF24L01_SPI,&nrf24l01_spi_device);
 
 	Result = SPI_L(Reg);
 
@@ -105,7 +113,7 @@ char NRF24L01_ReadRegBuf(char Reg, char *Buf, int Size) {
 		Buf[i] = SPI_L(NOP);
 	}
 
-	NRF24L01_CSN_HIGH;
+	spi_deselect_device(NRF24L01_SPI,&nrf24l01_spi_device);
 
 	return Result;
 }
@@ -123,7 +131,7 @@ char NRF24L01_WriteRegBuf(char Reg, char *Buf, int Size) {
 	int i;
 	char Result;
 
-	NRF24L01_CSN_LOW;
+	spi_select_device(NRF24L01_SPI,&nrf24l01_spi_device);
 
 	Result = SPI_L(Reg);
 
@@ -131,7 +139,7 @@ char NRF24L01_WriteRegBuf(char Reg, char *Buf, int Size) {
 		SPI_L(Buf[i]);
 	}
 
-	NRF24L01_CSN_HIGH;
+	spi_deselect_device(NRF24L01_SPI,&nrf24l01_spi_device);
 
 	return Result;
 }
@@ -144,13 +152,13 @@ char NRF24L01_WriteRegBuf(char Reg, char *Buf, int Size) {
 char NRF24L01_Get_Status(void) {
 	char Result;
 
-	NRF24L01_CSN_LOW;
+	spi_select_device(NRF24L01_SPI,&nrf24l01_spi_device);
 
 	SPI_L(0x07);     
 
 	Result = SPI_L(NOP);
 
-	NRF24L01_CSN_HIGH;
+	spi_deselect_device(NRF24L01_SPI,&nrf24l01_spi_device);
 
 	return Result;
 }
@@ -285,18 +293,18 @@ void NRF24L01_Set_TX_Address(char *Address, int Size) {
 
 */
 void NRF24L01_Flush_TX(void) {
-	NRF24L01_CSN_LOW;
+	spi_select_device(NRF24L01_SPI,&nrf24l01_spi_device);
 	SPI_L(FLUSH_TX);
-	NRF24L01_CSN_HIGH;
+	spi_deselect_device(NRF24L01_SPI,&nrf24l01_spi_device);
 }
 
 /**
  Empty the receive buffer
 */
 void NRF24L01_Flush_RX(void) {
-	NRF24L01_CSN_LOW;
+	spi_select_device(NRF24L01_SPI,&nrf24l01_spi_device);
 	SPI_L(FLUSH_RX);
-	NRF24L01_CSN_HIGH;
+	spi_deselect_device(NRF24L01_SPI,&nrf24l01_spi_device);
 }
 
 /**
@@ -424,16 +432,11 @@ void NRF24L01_Send(char Buf[_Buffer_Size]) {
 
 }
 
-
-char SPI_L(char TX_Data) 
-{	
-/* Send pattern. */
-	spi_put(&NRF24L01_SPI,TX_Data);
-
-	/* Wait for transmission complete. */
-	while(!(spi_is_tx_ok(&NRF24L01_SPI)));
-	/* Read received data. */
-	uint8_t result = spi_get(&NRF24L01_SPI);
-
-	return(result);
+// New function for SPI communication, based on SPI (Common API)(service)
+uint8_t SPI_L(uint8_t TX_Data)
+{
+	uint8_t tx_buff[1],rx_buff[1];
+	tx_buff[0] = TX_Data;
+	spi_transceive_packet(NRF24L01_SPI,tx_buff,rx_buff,1);
+	return(rx_buff[0]);
 }

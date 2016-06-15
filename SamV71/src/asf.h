@@ -129,4 +129,6 @@
 // From module: pio_handler support enabled
 #include <pio_handler.h>
 
+#include "nrf24l01.h"
+
 #endif // ASF_H

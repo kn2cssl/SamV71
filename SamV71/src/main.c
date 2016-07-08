@@ -1,5 +1,6 @@
 #include <asf.h>
 #include <inttypes.h>
+#include "controller.h"
 void timer_init_test (void);
 void pwm_init_test(void);
 void adc_init_test (void);
@@ -39,7 +40,7 @@ int main (void)
 	ioport_set_pin_mode(PIO_PC31_IDX,IOPORT_MODE_PULLDOWN);
 	ioport_disable_pin(PIO_PC31_IDX);
 	
-
+uint32_t timer;
 
 
 	while(1)
@@ -52,12 +53,13 @@ int main (void)
 		
 		dacc_write_conversion_data(DACC, dac_counter, DACC_CHANNEL);
 		
-		int data_size = sprintf(data," %ld, %ld, %ld, %ld, %ld \r"
+		int data_size = sprintf(data," %d, %d, %d, %d, %d ,%ld\r"
 		,spi_rx_buf[0]//result//tim[0]//TC2->TC_CHANNEL[0].TC_RA
 		,spi_rx_buf[1]//tim[1]//TC2->TC_CHANNEL[0].TC_RB
 		,spi_rx_buf[2]//tim[2]//ioport_get_pin_level(PIO_PC29_IDX)
 		,spi_rx_buf[3]//tim[3]//ioport_get_pin_level(PIO_PC30_IDX)
 		,spi_rx_buf[4]//TC2->TC_CHANNEL[0].TC_SR);
+		,timer
 		);
 		for (int i = 0 ; i < data_size ; i++)
 		{
@@ -80,6 +82,37 @@ int main (void)
 		ioport_set_pin_level(PIO_PC5_IDX, LOW );
 		tim[3]=TC2->TC_CHANNEL[0].TC_RA;
 		//delay_us(100);
+		
+// 		Timer_show();
+// 		Timer_on();
+		TC2->TC_CHANNEL[1].TC_CCR=TC_CCR_SWTRG;
+		
+			
+		observer();
+					
+		state_generator();
+					
+		setpoint_generator() ;
+					
+		state_feed_back() ;
+
+		ocr_change();
+		float nominal_v[4] ;
+		float out_l[4];
+		nominal_v[0]= fabs(u[0][0] / Robot.bat_v.full);
+		nominal_v[1]= fabs(u[1][0] / Robot.bat_v.full);
+		nominal_v[2]= fabs(u[2][0] / Robot.bat_v.full);
+		nominal_v[3]= fabs(u[3][0] / Robot.bat_v.full);
+		out_l[0] = (454.2 * nominal_v[0] + 326.3) / (pow(nominal_v[0],2) - 8364.0 * nominal_v[0] + 9120.0) * max_ocr * sign(u[0][0]);
+		out_l[1] = (454.2 * nominal_v[1] + 326.3) / (pow(nominal_v[1],2) - 8364.0 * nominal_v[1] + 9120.0) * max_ocr * sign(u[1][0]);
+		out_l[2] = (454.2 * nominal_v[2] + 326.3) / (pow(nominal_v[2],2) - 8364.0 * nominal_v[2] + 9120.0) * max_ocr * sign(u[2][0]);
+		out_l[3] = (454.2 * nominal_v[3] + 326.3) / (pow(nominal_v[3],2) - 8364.0 * nominal_v[3] + 9120.0) * max_ocr * sign(u[3][0]);
+					
+		Robot.W0_sp.full = out_l[0];//u[0][0] /Robot.bat_v.full * max_ocr;
+		Robot.W1_sp.full = out_l[1];//u[1][0] /Robot.bat_v.full * max_ocr;
+		Robot.W2_sp.full = out_l[2];//u[2][0] /Robot.bat_v.full * max_ocr;
+		Robot.W3_sp.full = out_l[3];//u[3][0] /Robot.bat_v.full * max_ocr;
+		timer = TC2->TC_CHANNEL[1].TC_CV;	
 		
 	}
 }
@@ -223,6 +256,12 @@ void timer_init_test (void)
 	// Counter
 	tc_init(TC2,0,TC_CMR_TCCLKS_TIMER_CLOCK4 | TC_CMR_ABETRG | TC_CMR_ETRGEDG_EDGE | TC_CMR_LDRA_EDGE );
 	tc_start(TC2,0);
+	
+	pmc_pck_set_source(PMC_PCK_6,PMC_PCK_CSS_PLLA_CLK);
+	pmc_pck_set_prescaler(PMC_PCK_6,PMC_PCK_PRES(16));// PMC_PCK_PRES(prescaler) -> this functions (macro) should be used inorder to prescale sourse clock
+	pmc_enable_pck(PMC_PCK_6);
+	tc_init(TC2,1,TC_CMR_TCCLKS_TIMER_CLOCK1 | TC_CMR_WAVE);// maximum clk worked for tc is 100MHz
+	tc_start(TC2,1);
 }
 
 
